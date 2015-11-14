@@ -18,61 +18,67 @@ namespace NuanceTTS.Droid
 		}
 		private System.IO.Stream ms = new MemoryStream();
 
-		public void PlayStream(string url)
+		public void PlayStream(string url, string text)
 		{
 			
 				
-
-
-			HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
-			req.Method = "POST";
-			req.KeepAlive = false;
-			req.Accept = "audio/x-wav;codec=pcm;bit=16;rate=16000";
-			req.ContentType = "text/plain";
-
-		
-			var streamOut = new StreamWriter(req.GetRequestStream(), System.Text.Encoding.ASCII);
-			streamOut.Write ("Hello body!");
-			streamOut.Close ();
-
-			using (var stream = req.GetResponse().GetResponseStream())
-			{
-				byte[] buffer = new byte[32768]; // 32KB chunks
-				int read;
-				while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
-				{
-					var pos = ms.Position;
-					ms.Position = ms.Length;
-					ms.Write(buffer, 0, read);
-					ms.Position = pos;
-				}
-			}
+			new System.Threading.Thread (delegate (object o) {
 				
-			var br = new BinaryReader (ms);
+				HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
+				req.Method = "POST";
+				req.KeepAlive = false;
+				req.Accept = "audio/x-wav;codec=pcm;bit=16;rate=16000";
+				//req.Accept = "audio/x-wav";
+				req.ContentType = "text/plain";
 
+
+				var streamOut = new StreamWriter(req.GetRequestStream(), System.Text.Encoding.ASCII);
+				streamOut.Write (text);
+				streamOut.Close ();
+
+
+				using (var stream = req.GetResponse().GetResponseStream())
+				{
+					byte[] buffer = new byte[65536]; // 64KB chunks
+					int read;
+					while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+					{
+						var pos = ms.Position;
+						ms.Position = ms.Length;
+						ms.Write(buffer, 0, read);
+						ms.Position = pos;
+					}
+				}
+
+			}).Start ();
+
+			while (ms.Length < 65536) {
+				System.Threading.Thread.Sleep (1000);
+			}
+
+			var br = new BinaryReader (ms);
+			//ms.Position = 0;
 			PlayAudioTrack(br.ReadBytes((int)ms.Length));
+
 				
 		}
 
 		void PlayAudioTrack(byte[] audioBuffer)
 		{
-			AudioTrack audioTrack = new AudioTrack(
-				// Stream type
-				Android.Media.Stream.Music,
-				// Frequency
-				16000,
-				// Mono or stereo
-				ChannelConfiguration.Stereo,
-				// Audio encoding
-				Android.Media.Encoding.Default,
-				// Length of the audio clip.
-				audioBuffer.Length,
-				// Mode. Stream or static.
-				AudioTrackMode.Stream);
+			AudioTrack audioTrack = null;
 
-		
-			audioTrack.Play();
+			audioTrack = new AudioTrack(
+				Android.Media.Stream.Music,
+				8000,
+				ChannelOut.Stereo,
+				Android.Media.Encoding.Pcm16bit,
+				audioBuffer.Length,
+				AudioTrackMode.Stream);
+			
 			audioTrack.Write(audioBuffer, 0, audioBuffer.Length);
+			audioTrack.Play();
+
+
 		}
 	}
 }
