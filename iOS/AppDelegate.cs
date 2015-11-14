@@ -19,6 +19,7 @@ namespace NuanceTTS.iOS
 			Xamarin.Calabash.Start();
 			#endif
 
+            //add project reference
 			LoadApplication (new App ());
 
 			return base.FinishedLaunching (app, options);
