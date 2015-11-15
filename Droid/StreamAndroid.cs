@@ -4,7 +4,7 @@ using NuanceTTS.Droid;
 using Android.Media;
 using System.Net;
 using System.IO;
-
+using System.Threading.Tasks;
 
 [assembly: Xamarin.Forms.Dependency (typeof (StreamAndroid))]
 
@@ -18,52 +18,55 @@ namespace NuanceTTS.Droid
 		}
 		private System.IO.Stream ms = new MemoryStream();
 
-		public void PlayStream(string url, string text)
-		{
-			
-				
-			new System.Threading.Thread (delegate (object o) {
-				
-				HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
-				req.Method = "POST";
-				req.KeepAlive = false;
-				req.Accept = "audio/x-wav;codec=pcm;bit=16;rate=16000";
-				//req.Accept = "audio/x-wav";
-				req.ContentType = "text/plain";
+        public void PlayStream(string url, string text)
+        {
+            var bufferSize = AudioTrack.GetMinBufferSize(16000, ChannelOut.Stereo, Encoding.Pcm16bit);
 
 
-				var streamOut = new StreamWriter(req.GetRequestStream(), System.Text.Encoding.ASCII);
-				streamOut.Write (text);
-				streamOut.Close ();
+           // new System.Threading.Thread(delegate (object o)
+         //   {
+
+                HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
+                req.Method = "POST";
+                req.KeepAlive = false;
+                req.Accept = "audio/x-wav;codec=pcm;bit=16;rate=16000";
+                //req.Accept = "audio/x-wav";
+                req.ContentType = "text/plain";
 
 
-				using (var stream = req.GetResponse().GetResponseStream())
-				{
-					byte[] buffer = new byte[65536]; // 64KB chunks
-					int read;
-					while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
-					{
-						var pos = ms.Position;
-						ms.Position = ms.Length;
-						ms.Write(buffer, 0, read);
-						ms.Position = pos;
-					}
-				}
+                var streamOut = new StreamWriter(req.GetRequestStream(), System.Text.Encoding.ASCII);
+                streamOut.Write(text);
+                streamOut.Close();
 
-			}).Start ();
 
-			while (ms.Length < 65536) {
-				System.Threading.Thread.Sleep (1000);
-			}
+                using (var stream = req.GetResponse().GetResponseStream())
+                {
+                    byte[] buffer = new byte[bufferSize]; 
+                    int read;
+                    while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        var pos = ms.Position;
+                        ms.Position = ms.Length;
+                        ms.Write(buffer, 0, read);
+                        ms.Position = pos;
 
-			var br = new BinaryReader (ms);
-			//ms.Position = 0;
-			PlayAudioTrack(br.ReadBytes((int)ms.Length));
 
-				
-		}
+                    }
+                }
 
-		void PlayAudioTrack(byte[] audioBuffer)
+           // }).Start();
+
+            //while (ms.Length < bufferSize * 10) {
+            //	System.Threading.Thread.Sleep (1000);
+            //}
+            //ms.Position = 0;
+            var br = new BinaryReader(ms);
+
+            PlayAudioTrack(br.ReadBytes((int)ms.Length));
+
+        }
+
+        void PlayAudioTrack(byte[] audioBuffer)
 		{
 			AudioTrack audioTrack = null;
 
@@ -74,9 +77,10 @@ namespace NuanceTTS.Droid
 				Android.Media.Encoding.Pcm16bit,
 				audioBuffer.Length,
 				AudioTrackMode.Stream);
+
+            audioTrack.Play();
+            audioTrack.Write(audioBuffer, 0, audioBuffer.Length);
 			
-			audioTrack.Write(audioBuffer, 0, audioBuffer.Length);
-			audioTrack.Play();
 
 
 		}
