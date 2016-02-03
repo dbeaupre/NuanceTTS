@@ -4,7 +4,7 @@ namespace NuanceTTS
 {
 	public interface IStream
 	{
-		void PlayStream(string url, string text);
+		void PlayStream(string text);
 	}
 }
 
